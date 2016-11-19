@@ -30,7 +30,7 @@ var handlers = {
       todoText: addTodoTextInput.value,
       completed: false
     };
-    
+
     todoList.addTodo(addTodoTextInput.value, nextElementKey);
     if(view.activeFilterElement && (view.activeFilterElement.getAttribute("href") !== '#/completed')){
       var newLiElement = view.createTodoElement(newTodo, nextElementKey);
@@ -40,12 +40,8 @@ var handlers = {
 
     addTodoTextInput.value = '';
   },
-  changeTodo: function() {
-    var changeTodoPositionInput = document.getElementById('changeTodoPositionInput');
-    var changeTodoTextInput = document.getElementById('changeTodoTextInput');
-    todoList.changeTodo(changeTodoPositionInput.valueAsNumber, changeTodoTextInput.value);
-    changeTodoPositionInput.value = '';
-    changeTodoTextInput.value = '';
+  changeTodo: function(position, todoText) {
+    todoList.changeTodo(position, todoText);
   },
   deleteTodo: function(position) {
     todoList.deleteTodo(position);
@@ -86,13 +82,13 @@ var handlers = {
     //all - returns all available todos including completed.
     //completed - returns only completed todos
     //active - reurns only active / incomplete todos
-    
+
     var todoHash = todoList.todos;
-    
+
     if(todoType === 'all'){
       return todoHash;
     }
-    
+
     if(todoType === 'completed'){
       var completedTodos = {};
       for(var todoKey in todoHash){
@@ -102,7 +98,7 @@ var handlers = {
       }
       return completedTodos;
     }
-    
+
     if (todoType === 'active'){
       var activeTodos = {};
       for(var todoKey in todoHash){
@@ -121,7 +117,7 @@ var handlers = {
       if (liElement){
         liElement.parentNode.removeChild(liElement);
       }
-       delete todoList.todos[todoKey];
+      delete todoList.todos[todoKey];
     }
   }
 };
@@ -129,7 +125,7 @@ var handlers = {
 var view = {
   //It holds active Filter element of type "All", "Active" or "Completed"
   activeFilterElement: null,
-  
+
   //Creates new Todo Element.
   createTodoElement: function(toDo, nextElementIntId) {
 
@@ -170,7 +166,7 @@ var view = {
   getLiAncsetor: function(inElement) {
     //http://stackoverflow.com/questions/22119673/find-the-closest-ancestor-element-that-has-a-specific-class
     //Get Parent Li element
-    
+
     while ((inElement = inElement.parentElement) && (inElement.name !== 'todoLi')) {
       //do nothing;
     }
@@ -182,8 +178,8 @@ var view = {
 
     var ulElement = this.getFirstElementUsingClassName('todo-list');
     while (ulElement.hasChildNodes())
-      ulElement.removeChild(ulElement.lastChild);    
-    
+      ulElement.removeChild(ulElement.lastChild);
+
     for(var todoKey in todoScopeList){
       liElement = this.createTodoElement(todoScopeList[todoKey], todoKey);
       ulElement.appendChild(liElement);
@@ -191,12 +187,14 @@ var view = {
   },
   getFirstElementUsingClassName: function(className){
     var elements = document.getElementsByClassName(className);
-    var firstElement = elements[0];
-    
-    return firstElement;      
+    if (elements.length > 0){
+      return elements[0];
+    }
+
+    return null;
   },
   regiserInitialListeners: function(todoUlElement, filtersUlElement) {
-    
+
     todoUlElement.addEventListener('click', function(event) {
       var targetElement = event.target;
       var selectedLiElement = view.getLiAncsetor(targetElement);
@@ -220,28 +218,41 @@ var view = {
         }
       }
     });
-    
+
     todoUlElement.addEventListener('dblclick', function(event){
       var targetElement = event.target;
       var elementType = targetElement.tagName;
       console.log("Element Type - " + elementType);
       if(elementType === 'LABEL'){
         //create a input text element so that user can update ToDo.
-        var editElement = document.createElement('input');
-        editElement.className = 'edit';
-        editElement.textContent = targetElement.textContent;
-        targetElement.parentNode.appendChild(editElement);
-        targetElement.parentNode.className= targetElement.parentNode.className + " editing";
-        //targetElement.style.display = 'none';
-        
-        editElement.addEventListener('blur', function(event){
-          var targetElement = event.target;
-          var liElement = targetElement.parentNode;
-          var label = document.getElementsByTagName('label')[0];
-          label.textContent = targetElement.textContent;
-          
-          liElement.removeChild(targetElement);
-        });
+        var editElement = view.getFirstElementUsingClassName('edit');
+        if (!editElement){
+          editElement = document.createElement('input');
+          editElement.type = 'text';
+          editElement.className = 'edit';
+          targetElement.parentNode.parentNode.appendChild(editElement);
+
+          editElement.value = targetElement.textContent;
+          targetElement.parentNode.parentNode.className= targetElement.parentNode.parentNode.className + " editing";
+
+          editElement.addEventListener('blur', function(event){
+            var targetElement = event.target;
+            var liElement = targetElement.parentNode;
+
+            //Update value of todo in our storage.
+            var todoIndex = liElement.id.split('-')[1];
+            handlers.changeTodo(todoIndex, targetElement.value);
+
+            var label = liElement.getElementsByTagName('label')[0];
+            label.textContent = targetElement.value;
+            liElement.removeChild(targetElement);
+            var liClass = '';
+            if (todoList.todos[todoIndex].completed){
+              liClass = 'completed '
+            }
+            liElement.className = liClass;
+          });
+        }
       }
     });
 
@@ -258,18 +269,18 @@ var view = {
     toggleAllElement.addEventListener("click", function(event) {
       handlers.toggleAll();
     });
-    
+
     var clearCompletedButton = this.getFirstElementUsingClassName('clear-completed');
     clearCompletedButton.addEventListener("click", function(){
       handlers.clearCompleted();
     });
-    
+
     filtersUlElement.addEventListener('click', function(event){
       var targetElement = event.target;
       var hrefValue = targetElement.getAttribute("href");
-      
+
       if(hrefValue){
-        
+
         if(hrefValue === '#/'){
           view.displayTodos('all');
         }else if(hrefValue === '#/active'){
@@ -278,18 +289,18 @@ var view = {
         else if(hrefValue === '#/completed'){
           view.displayTodos('completed');
         }
-        
+
         var oldActiveFilterElement = view.activeFilterElement;
         if (oldActiveFilterElement){
           oldActiveFilterElement.className = '';
         }
-        
+
         targetElement.className = 'selected';
         view.activeFilterElement = targetElement;
       }
-      
+
     });
-  } 
+  }
 };
 
 var todoUlElement = view.getFirstElementUsingClassName('todo-list');
